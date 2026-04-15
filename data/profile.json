@@ -1,0 +1,256 @@
+{
+  "name": "Indrani Inapakolla",
+  "title": "Full Stack Engineer",
+  "bio": "Full Stack Engineer with AI experience and 3+ years of experience building scalable web applications.",
+  "linkedin": "https://www.linkedin.com/in/indrani-i/",
+  "github_username": "indrani-19",
+  "github_url": "https://github.com/indrani-19",
+  "leetcode_username": "tryingtosolveproblems",
+  "leetcode_url": "https://leetcode.com/tryingtosolveproblems",
+  "medium_url": "https://medium.com/@indhuinapakolla",
+  "availability": "Open to new opportunities",
+  "skills": [
+    "TypeScript",
+    "JavaScript",
+    "Python",
+    "React",
+    "Next.js",
+    "Node.js",
+    "AI/ML Integration",
+    "REST APIs",
+    "GraphQL",
+    "PostgreSQL",
+    "MongoDB",
+    "AWS",
+    "Docker",
+    "Git"
+  ],
+  "resume_text": "Software Engineer with 3 years across product and infrastructure, delivering scalable, high-performance systems and cloud applications. Skilled in React, Java Spring Boot and Python, Kafka & Azure data pipelines. Experienced in designing microservices, containerizing with Docker/Kubernetes, and automating CI/CD for speed and reliability.\n\nExperience:\n- Reacher Platforms (YC S25), Software Engineer, San Francisco, Jan 2026–present: Built full-stack creative agent feature (React.js, Python, GCP) processing TikTok API data; engineered end-to-end content moderation platform analyzing 170K videos weekly with Sentry observability.\n- XNODE Inc, Founding Engineer, Remote, Jan 2025–Jan 2026: Built fullstack workflow system (TypeScript, FastAPI, SpringBoot) reducing PM manual effort by 80%; implemented LLM-powered RAG pipeline with Azure Blob & PG Vector; introduced OpenTelemetry reducing incident triage by 40%.\n- Blue Cross Blue Shield (Florida Blue), Software Engineer, Florida, July 2024–Dec 2025: Designed Spring Boot & Apache Kafka service for real-time fraud detection cutting failure rate by 73%; automated PostgreSQL to AWS RDS migration lowering storage costs by 30%.\n- Phenom, Software Engineer, Hyderabad, July 2021–Aug 2022: Shipped rule-based candidate profiling system improving assessment accuracy by 75%; built REST microservice reducing customer onboarding from 3 days to minutes.\n\nEducation: Arizona State University, M.S Computer Science, GPA 4.0, Aug 2022–May 2024.\n\nTechnical Skills: Java, Python, Go, JavaScript, SQL, TypeScript, React.js, Spring Boot, FastAPI, Node.js, GraphQL, Kafka, PostgreSQL, MongoDB, Redis, AWS, Azure, GCP, Docker, Kubernetes, Terraform, Prometheus, OpenTelemetry, LangChain, VectorDB.",
+  "github_repos": [
+    {
+      "name": "real-time-risk-scorer",
+      "description": "Real-Time Transaction Risk Scorer flags or blocks risky financial transactions using rule-based logic and machine learning. Processes transactions in real time, enabling banks and payment providers to detect and prevent fraud instantly.",
+      "url": "https://github.com/Indrani-19/real-time-risk-scorer",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-07-07T18:53:26Z"
+    },
+    {
+      "name": "AI-Code-Review-Tool",
+      "description": "AI-powered code review system with Flask and PostgreSQL",
+      "url": "https://github.com/Indrani-19/AI-Code-Review-Tool",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-18T18:56:36Z"
+    },
+    {
+      "name": "vulnerability-scanner",
+      "description": "A Go-based vulnerability scanner service that processes security data from GitHub repos. Features: concurrent processing, SQLite storage, REST API, severity filtering. 85%+ test coverage.",
+      "url": "https://github.com/Indrani-19/vulnerability-scanner",
+      "stars": 0,
+      "language": "Go",
+      "topics": [],
+      "updated_at": "2025-03-18T14:21:49Z"
+    },
+    {
+      "name": "Student-Scores-Prediction-using-Linear-Regression",
+      "description": "This data set contains scores and number of hours each student studied.using supervised learning algorithm we need to predict the scores of the students based on the number of hours studied.I used linear regression to build this model.",
+      "url": "https://github.com/Indrani-19/Student-Scores-Prediction-using-Linear-Regression",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:32:53Z"
+    },
+    {
+      "name": "Indrani-19",
+      "description": "My account",
+      "url": "https://github.com/Indrani-19/Indrani-19",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:29:08Z"
+    },
+    {
+      "name": "Dashboard-sla-pro-using-Vue.js",
+      "description": "",
+      "url": "https://github.com/Indrani-19/Dashboard-sla-pro-using-Vue.js",
+      "stars": 1,
+      "language": "Vue",
+      "topics": [],
+      "updated_at": "2025-03-13T23:14:52Z"
+    },
+    {
+      "name": "pythongame",
+      "description": "A TIC TAC TOE GAME ",
+      "url": "https://github.com/Indrani-19/pythongame",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:10:39Z"
+    },
+    {
+      "name": "Decision-Tree-algorithm",
+      "description": "For the given ‘Iris’ dataset, create the Decision Tree classifier and visualize it graphically. The purpose is if we feed any new data to this classifier, it would be able to predict the right class accordingly.",
+      "url": "https://github.com/Indrani-19/Decision-Tree-algorithm",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:04:53Z"
+    },
+    {
+      "name": "Resume-Screening-ML",
+      "description": "AI-based Resume Screening using NLP and Machine Learning",
+      "url": "https://github.com/Indrani-19/Resume-Screening-ML",
+      "stars": 1,
+      "language": "Jupyter Notebook",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:58Z"
+    },
+    {
+      "name": "Formula-1-Race-Analysis-Dashboard-using-Tableau",
+      "description": "An interactive Tableau dashboard analyzing F1 race data (2013-2022). Explore driver performance, team standings, and race outcomes with 10 visualizations. Perfect for F1 fans, fantasy players, and analysts!",
+      "url": "https://github.com/Indrani-19/Formula-1-Race-Analysis-Dashboard-using-Tableau",
+      "stars": 1,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:56Z"
+    },
+    {
+      "name": "Creditcard-Fraud-Detection",
+      "description": "Creditcard Fraud Detection Using support vector Machine Algorithm",
+      "url": "https://github.com/Indrani-19/Creditcard-Fraud-Detection",
+      "stars": 1,
+      "language": "Jupyter Notebook",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:55Z"
+    },
+    {
+      "name": "House-Price-Prediction-Using-Advanced-Regression-Techniques",
+      "description": "",
+      "url": "https://github.com/Indrani-19/House-Price-Prediction-Using-Advanced-Regression-Techniques",
+      "stars": 1,
+      "language": "Jupyter Notebook",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:54Z"
+    },
+    {
+      "name": "High-Availability-PHP-Application-Deployment-on-AWS",
+      "description": "This project involved designing and deploying a highly available PHP application for a social research company on AWS. The architecture ensures scalability, fault tolerance, and secure access to resources.",
+      "url": "https://github.com/Indrani-19/High-Availability-PHP-Application-Deployment-on-AWS",
+      "stars": 1,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:53Z"
+    },
+    {
+      "name": "Air-Pollution-Monitoring-System",
+      "description": "Real-time air quality monitoring using Raspberry Pi & AWS IoT. Detects CO, CO2, AQI, and sends email alerts via AWS SNS. Scalable, secure, and eco-friendly!",
+      "url": "https://github.com/Indrani-19/Air-Pollution-Monitoring-System",
+      "stars": 1,
+      "language": "Python",
+      "topics": [],
+      "updated_at": "2025-03-13T23:00:51Z"
+    },
+    {
+      "name": "My-Portfolio",
+      "description": "",
+      "url": "https://github.com/Indrani-19/My-Portfolio",
+      "stars": 0,
+      "language": "",
+      "topics": [],
+      "updated_at": "2025-02-08T17:45:07Z"
+    },
+    {
+      "name": "Portfolio",
+      "description": "",
+      "url": "https://github.com/Indrani-19/Portfolio",
+      "stars": 0,
+      "language": "HTML",
+      "topics": [],
+      "updated_at": "2025-02-08T17:42:38Z"
+    },
+    {
+      "name": "bluise",
+      "description": "",
+      "url": "https://github.com/Indrani-19/bluise",
+      "stars": 0,
+      "language": "Vue",
+      "topics": [],
+      "updated_at": "2023-08-14T21:20:49Z"
+    },
+    {
+      "name": "realestateapp",
+      "description": "",
+      "url": "https://github.com/Indrani-19/realestateapp",
+      "stars": 0,
+      "language": "JavaScript",
+      "topics": [],
+      "updated_at": "2023-07-25T23:20:40Z"
+    },
+    {
+      "name": "form",
+      "description": "a data form , where using pure javascript CRUD operations",
+      "url": "https://github.com/Indrani-19/form",
+      "stars": 1,
+      "language": "JavaScript",
+      "topics": [],
+      "updated_at": "2021-07-07T13:06:36Z"
+    },
+    {
+      "name": "signup",
+      "description": "",
+      "url": "https://github.com/Indrani-19/signup",
+      "stars": 0,
+      "language": "JavaScript",
+      "topics": [],
+      "updated_at": "2021-07-07T06:14:54Z"
+    }
+  ],
+  "medium_posts": [
+    {
+      "title": "How Distributed Systems Communicate: Choosing the Right Pattern for Real-Time and Scale",
+      "link": "https://indhuinapakolla.medium.com/how-distributed-systems-communicate-choosing-the-right-pattern-for-real-time-and-scale-5cc5ae071a62?source=rss-409002320559------2",
+      "summary": "",
+      "published": "Tue, 29 Jul 2025 00:20:19 GMT",
+      "categories": [
+        "distributed-systems",
+        "system-design-interview",
+        "system-design-concepts"
+      ]
+    },
+    {
+      "title": "Have you ever wondered how ChatGPT can carry on a conversation, recalling what you said just…",
+      "link": "https://indhuinapakolla.medium.com/have-you-ever-wondered-how-chatgpt-can-carry-on-a-conversation-recalling-what-you-said-just-213336a9ce56?source=rss-409002320559------2",
+      "summary": "",
+      "published": "Sat, 05 Apr 2025 17:42:05 GMT",
+      "categories": [
+        "genai",
+        "gpt",
+        "ai",
+        "llm",
+        "generative-ai-tools"
+      ]
+    },
+    {
+      "title": "Google Spanner: A Database That Breaks the Rules",
+      "link": "https://indhuinapakolla.medium.com/google-spanner-a-database-that-breaks-the-rules-ccdd2767ab21?source=rss-409002320559------2",
+      "summary": "",
+      "published": "Tue, 11 Mar 2025 16:09:38 GMT",
+      "categories": [
+        "google",
+        "system-design-concepts",
+        "sql",
+        "nosql",
+        "database"
+      ]
+    }
+  ],
+  "leetcode_stats": {
+    "total_solved": 429,
+    "easy": 155,
+    "medium": 228,
+    "hard": 46
+  }
+}
