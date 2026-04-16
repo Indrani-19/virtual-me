@@ -1,35 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { randomUUID } from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
-const FILE = join(process.cwd(), 'data', 'feedback.json');
-const TO   = 'indraniinapakolla@gmail.com';
+const TO = 'indraniinapakolla@gmail.com';
+
+function supabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 interface Entry {
   id: string;
   name: string;
   message: string;
-  ts: string; // ISO
-}
-
-function read(): Entry[] {
-  try {
-    return JSON.parse(readFileSync(FILE, 'utf8')).entries ?? [];
-  } catch {
-    return [];
-  }
-}
-
-function write(entries: Entry[]) {
-  writeFileSync(FILE, JSON.stringify({ entries }, null, 2));
+  ts: string;
 }
 
 async function sendEmailNotification(entry: Entry) {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return; // silently skip if not configured
+  if (!user || !pass) return;
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -73,8 +65,14 @@ async function sendEmailNotification(entry: Entry) {
 }
 
 export async function GET() {
-  const entries = read().slice().reverse().slice(0, 60);
-  return NextResponse.json({ entries });
+  const { data, error } = await supabase()
+    .from('feedback')
+    .select('*')
+    .order('ts', { ascending: false })
+    .limit(60);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ entries: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -82,21 +80,22 @@ export async function POST(req: NextRequest) {
   const msg = (message ?? '').trim().slice(0, 500);
   if (!msg) return NextResponse.json({ error: 'Message required' }, { status: 400 });
 
-  const entry: Entry = {
-    id: randomUUID(),
+  const entry = {
     name: (name ?? '').trim().slice(0, 50) || 'Anonymous',
     message: msg,
-    ts: new Date().toISOString(),
   };
 
-  const entries = read();
-  entries.push(entry);
-  write(entries);
+  const { data, error } = await supabase()
+    .from('feedback')
+    .insert(entry)
+    .select()
+    .single();
 
-  // Fire-and-forget — don't fail the request if email fails
-  sendEmailNotification(entry).catch(err =>
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  sendEmailNotification(data).catch(err =>
     console.warn('Email notification failed:', err.message)
   );
 
-  return NextResponse.json({ entry }, { status: 201 });
+  return NextResponse.json({ entry: data }, { status: 201 });
 }
