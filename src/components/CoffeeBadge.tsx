@@ -106,7 +106,7 @@ export default function CoffeeBadge() {
                   border: 'none',
                   background: drink === i ? `${d.color}22` : 'transparent',
                   color: drink === i ? d.color : 'rgba(148,163,184,0.5)',
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: drink === i ? 600 : 400,
                   cursor: 'pointer',
                   transition: 'all 0.18s',
@@ -121,7 +121,7 @@ export default function CoffeeBadge() {
           {/* Body */}
           <div style={{ padding: '14px 18px 16px' }}>
             <p style={{
-              fontSize: 13.5,
+              fontSize: 15,
               fontWeight: 700,
               color: '#e2e8f0',
               marginBottom: 6,
@@ -131,7 +131,7 @@ export default function CoffeeBadge() {
               Coffee&#8209;Driven&nbsp;Development
             </p>
             <p style={{
-              fontSize: 11.5,
+              fontSize: 13,
               color: 'rgba(148,163,184,0.7)',
               lineHeight: 1.6,
               marginBottom: 14,
@@ -152,7 +152,7 @@ export default function CoffeeBadge() {
                 borderRadius: 10,
                 background: `linear-gradient(135deg, ${color}cc, ${color}99)`,
                 color: '#fff',
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 700,
                 textDecoration: 'none',
                 letterSpacing: '0.01em',
@@ -172,7 +172,7 @@ export default function CoffeeBadge() {
             </a>
 
             <p style={{
-              fontSize: 9.5,
+              fontSize: 11,
               color: 'rgba(100,116,139,0.45)',
               textAlign: 'center',
               marginTop: 8,
