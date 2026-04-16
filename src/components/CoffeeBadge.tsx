@@ -136,7 +136,7 @@ export default function CoffeeBadge() {
               lineHeight: 1.6,
               marginBottom: 14,
             }}>
-              I run on {DRINKS[drink].label.toLowerCase()} and curiosity.
+              I run on {DRINKS[drink].label.toLowerCase()}{' '}and curiosity.
               Let&apos;s grab one and talk tech, startups, side projects,
               or whatever&apos;s brewing in your mind.
             </p>
@@ -168,7 +168,7 @@ export default function CoffeeBadge() {
                 (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(0)';
               }}
             >
-              {emoji} Let&apos;s set something up
+              {emoji}{' '}Let&apos;s set something up
             </a>
 
             <p style={{
