@@ -88,6 +88,7 @@ html, body {
   padding: 3px;
   border-radius: 50%;
   animation: ring-shift 4s ease infinite;
+  will-change: background-position;
 }
 .avatar-ring-sm {
   background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa, #6366f1);
@@ -95,34 +96,41 @@ html, body {
   padding: 2px;
   border-radius: 50%;
   animation: ring-shift 4s ease infinite;
+  will-change: background-position;
 }
 @keyframes ring-shift {
-  0%   { background-position: 0% 50%;   filter: hue-rotate(0deg); }
-  50%  { background-position: 100% 50%; filter: hue-rotate(20deg); }
-  100% { background-position: 0% 50%;   filter: hue-rotate(0deg); }
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* ── Avatar floating ── */
 .avatar-float {
   animation: float 4s ease-in-out infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-10px); }
+  0%, 100% { transform: translateZ(0) translateY(0px); }
+  50%       { transform: translateZ(0) translateY(-8px); }
 }
 
-/* ── Speaking rings ── */
+/* ── Speaking rings — always in DOM, animated via opacity ── */
 .speak-ring {
   position: absolute;
   border-radius: 50%;
   border: 2px solid rgba(99, 102, 241, 0.35);
+  will-change: transform, opacity;
+  transform: translateZ(0);
   animation: speak-pulse 1.5s ease-out infinite;
+  pointer-events: none;
 }
 .speak-ring:nth-child(2) { animation-delay: 0.4s; border-color: rgba(139, 92, 246, 0.25); }
 .speak-ring:nth-child(3) { animation-delay: 0.8s; border-color: rgba(167, 139, 250, 0.15); }
+.speak-ring-hidden { animation: none !important; opacity: 0 !important; }
 @keyframes speak-pulse {
-  0%   { transform: scale(1);    opacity: 0.7; }
-  100% { transform: scale(1.55); opacity: 0; }
+  0%   { transform: translateZ(0) scale(1);    opacity: 0.7; }
+  100% { transform: translateZ(0) scale(1.55); opacity: 0; }
 }
 
 /* ── Caption box ── */
@@ -268,4 +276,57 @@ html, body {
 /* ── Header glow ── */
 .header-glow {
   text-shadow: 0 0 40px rgba(99, 102, 241, 0.25);
+}
+
+/* ── Suggestion bubble ── */
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+@keyframes bubble-ring {
+  0%, 100% { transform: scale(1);    opacity: 0.6; }
+  50%       { transform: scale(1.35); opacity: 0; }
+}
+@keyframes suggestions-panel-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes chip-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Coffee badge ── */
+@keyframes coffee-card-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+@keyframes steam {
+  0%, 100% { transform: translateY(0)   scaleX(1);    opacity: 0.6; }
+  50%       { transform: translateY(-8px) scaleX(1.4); opacity: 0; }
+}
+@keyframes cup-wobble {
+  0%, 100% { transform: rotate(0deg); }
+  20%       { transform: rotate(-8deg); }
+  40%       { transform: rotate(6deg); }
+  60%       { transform: rotate(-4deg); }
+  80%       { transform: rotate(2deg); }
+}
+@keyframes pill-breathe {
+  0%, 100% { box-shadow: 0 0 12px rgba(217,119,6,0.2), 0 2px 8px rgba(0,0,0,0.3); }
+  50%       { box-shadow: 0 0 22px rgba(217,119,6,0.38), 0 2px 8px rgba(0,0,0,0.3); }
+}
+
+/* ── Feedback widget ── */
+@keyframes feedback-panel-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes feedback-badge-in {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+@keyframes entry-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

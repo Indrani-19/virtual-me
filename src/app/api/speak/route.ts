@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function cleanForTTS(raw: string): string {
+  return raw
+    .replace(/[^\p{L}\p{N}\p{P}\p{Z}\n]/gu, '') // strip emojis & non-printable chars
+    .replace(/\*\*([^*]+)\*\*/g, '$1')            // bold
+    .replace(/[*_`#]/g, '')                        // other markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')       // links
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 1000);                               // ElevenLabs free tier: safe limit
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
+    const cleaned = cleanForTTS(text ?? '');
+    if (!cleaned) return NextResponse.json({ error: 'No text' }, { status: 400 });
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
@@ -13,8 +26,8 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
+          text: cleaned,
+          model_id: 'eleven_flash_v2_5',
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
@@ -25,8 +38,8 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const err = await response.text();
-      console.error('ElevenLabs error:', err);
-      return NextResponse.json({ error: 'TTS failed' }, { status: 500 });
+      console.error('ElevenLabs error:', response.status, err);
+      return NextResponse.json({ error: 'TTS failed', detail: err }, { status: 500 });
     }
 
     const audioBuffer = await response.arrayBuffer();

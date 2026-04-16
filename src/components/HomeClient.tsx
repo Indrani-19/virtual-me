@@ -2,9 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ParticleBackground from './ParticleBackground';
+import FloatingTech from './FloatingTech';
 import AvatarSection from './AvatarSection';
 import ChatInterface, { Message } from './ChatInterface';
 import InfoPanel from './InfoPanel';
+import BeyondCard from './BeyondCard';
+import SuggestionBubble from './SuggestionBubble';
+import FeedbackWidget from './FeedbackWidget';
+import CoffeeBadge from './CoffeeBadge';
 
 const LINKS = [
   { label: 'View my Resume',    href: '/Indrani_Inapakolla.pdf',                emoji: '📄' },
@@ -13,7 +18,17 @@ const LINKS = [
   { label: 'Read my Articles',  href: 'https://medium.com/@indhuinapakolla',    emoji: '✍️' },
 ];
 
-const CARD_LABELS = ['Profile', 'Chat', 'Resume'];
+const CARD_LABELS = ['Profile', 'Chat', 'Resume', 'Beyond'];
+
+function stripMd(text: string) {
+  return text
+    .replace(/[^\p{L}\p{N}\p{P}\p{Z}\n]/gu, ' ') // strip emojis & non-printable chars
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/[*_`#]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export default function HomeClient() {
   const [messages,    setMessages]    = useState<Message[]>([]);
@@ -22,10 +37,61 @@ export default function HomeClient() {
   const [isSpeaking,  setIsSpeaking]  = useState(false);
   const [speakingId,  setSpeakingId]  = useState<number | null>(null);
   const [lastAIMsg,   setLastAIMsg]   = useState('');
-  const [greeted,     setGreeted]     = useState(false);
-  const [active,      setActive]      = useState(1); // 0=Profile, 1=Chat, 2=Resume
+  const [volume,      setVolume]      = useState(80);  // 0-100
+  const [isMuted,     setIsMuted]     = useState(false);
+  const [isPaused,    setIsPaused]    = useState(false);
+  const [voiceMode,   setVoiceMode]   = useState(false);
+  const greetedRef    = useRef(false);
+  const messagesRef   = useRef<Message[]>([]);
+  const audioRef      = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const gainNodeRef    = useRef<GainNode | null>(null);
+  const sourceNodeRef  = useRef<AudioBufferSourceNode | null>(null);
+  const abortCtrlRef    = useRef<AbortController | null>(null);
+  const wordTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const utteranceRef    = useRef<SpeechSynthesisUtterance | null>(null);
+  const utteranceTextRef = useRef<string>('');
+  const [captionWordIndex, setCaptionWordIndex] = useState(-1);
+  const [active,      setActive]      = useState(0); // 0=Profile, 1=Chat, 2=Resume
   const recognitionRef = useRef<any>(null);
   const total = CARD_LABELS.length;
+
+  // Volume helpers — work for both AudioContext and browser TTS
+  const applyVolume = useCallback((vol: number, muted: boolean) => {
+    const gain = muted ? 0 : vol / 100;
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = gain;
+    if (window.speechSynthesis) {
+      // Can't change volume mid-utterance in speechSynthesis; handled at utterance creation
+    }
+  }, []);
+
+  const handleVolumeChange = useCallback((delta: number) => {
+    setVolume(prev => {
+      const next = Math.max(0, Math.min(100, prev + delta));
+      applyVolume(next, isMuted);
+      return next;
+    });
+  }, [isMuted, applyVolume]);
+
+  const handleMute = useCallback(() => {
+    setIsMuted(prev => { applyVolume(volume, !prev); return !prev; });
+  }, [volume, applyVolume]);
+
+  const handlePause = useCallback(() => {
+    setIsPaused(prev => {
+      if (!prev) {
+        audioCtxRef.current?.suspend();
+        window.speechSynthesis?.pause();
+      } else {
+        audioCtxRef.current?.resume();
+        window.speechSynthesis?.resume();
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Keep messagesRef in sync so voice callbacks always see latest messages
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   const prev = () => setActive((a) => (a - 1 + total) % total);
   const next = () => setActive((a) => (a + 1) % total);
@@ -42,25 +108,313 @@ export default function HomeClient() {
 
   // Auto-greet — hard-coded so it's instant and consistent
   useEffect(() => {
-    if (greeted) return;
-    setGreeted(true);
+    if (greetedRef.current) return;
+    greetedRef.current = true;
     const greeting = "Hi there! 👋 I'm Indrani's AI clone — think of me as her digital twin, but with faster responses and zero need for sleep. I'm glad you're here. Feel free to ask me anything about my work, skills, or experience!";
     const aiMsg: Message = { role: 'assistant', content: greeting, isTyping: true };
     setMessages([aiMsg]);
     setLastAIMsg(greeting);
   }, []);
 
+  // Whether the user has an active voice conversation session
+  const voiceModeRef    = useRef(false);
+  const isLoadingRef    = useRef(false);
+  const isSpeakingRef   = useRef(false);
+  const isRecordingRef  = useRef(false);
+  const gotResultRef    = useRef(false);
+  // Stable ref to the listen starter so sendVoiceMessage can call it without circular deps
+  const startListenRef = useRef<() => void>(() => {});
+
+  // Keep loading/speaking/recording refs in sync
+  useEffect(() => { isLoadingRef.current   = isLoading;   }, [isLoading]);
+  useEffect(() => { isSpeakingRef.current  = isSpeaking;  }, [isSpeaking]);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+
+  const startListening = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR || !voiceModeRef.current) return;
+    const r = new SR();
+    r.lang = 'en-US';
+    r.interimResults = false;
+    gotResultRef.current = false;
+    r.onspeechend = () => setIsRecording(false); // flip immediately when user stops speaking
+    r.onresult = (e: any) => {
+      gotResultRef.current = true;
+      setIsRecording(false);
+      sendVoiceMessageRef.current(e.results[0][0].transcript);
+    };
+    r.onend = () => {
+      setIsRecording(false);
+      // If we got a result, sendVoiceMessage handles the next listen — don't double-start
+      if (!gotResultRef.current && voiceModeRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+        // No speech detected — restart listening after a short pause
+        setTimeout(() => startListenRef.current(), 400);
+      }
+    };
+    r.onerror = (e: any) => {
+      setIsRecording(false);
+      if (e.error === 'aborted') return; // we called stop() ourselves — ignore
+      if ((e.error === 'no-speech' || e.error === 'audio-capture') && voiceModeRef.current) {
+        setTimeout(() => startListenRef.current(), 400);
+      } else {
+        voiceModeRef.current = false;
+        setVoiceMode(false); // keep React state in sync so button reflects real state
+      }
+    };
+    recognitionRef.current = r;
+    try {
+      r.start();
+      setIsRecording(true);
+    } catch (e) {
+      // Chrome throws InvalidStateError if previous session hasn't fully closed yet — retry once
+      console.warn('SpeechRecognition start failed, retrying:', e);
+      recognitionRef.current = null;
+      setTimeout(() => { if (voiceModeRef.current) startListenRef.current(); }, 300);
+    }
+  }, []);
+
+  // Keep startListenRef pointing at the latest startListening
+  useEffect(() => { startListenRef.current = startListening; }, [startListening]);
+
+  const sendVoiceMessage = useCallback(async (transcript: string) => {
+    if (!transcript.trim()) return;
+    const userMsg: Message = { role: 'user', content: transcript };
+    const updated = [...messagesRef.current, userMsg];
+    setMessages(updated);
+    setIsLoading(true);
+    // Create a fresh abort controller for this request
+    abortCtrlRef.current?.abort();
+    const ctrl = new AbortController();
+    abortCtrlRef.current = ctrl;
+    try {
+      const res  = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updated }),
+        signal: ctrl.signal,
+      });
+      const data = await res.json();
+      const aiMsg: Message = { role: 'assistant', content: data.message, isTyping: true };
+      setMessages((prev) => [...prev, aiMsg]);
+      setLastAIMsg(data.message);
+
+      // Don't speak if user stopped the conversation
+      if (!voiceModeRef.current) return;
+
+      // Speak the reply — try ElevenLabs, fall back to browser TTS
+      setIsSpeaking(true);
+      setSpeakingId(-1);
+
+      const cleanedMessage = stripMd(data.message);
+      const wordList = cleanedMessage.split(/\s+/).filter(Boolean);
+
+      const startWordTimer = (durationMs: number) => {
+        if (wordTimerRef.current) clearInterval(wordTimerRef.current);
+        setCaptionWordIndex(0);
+        const msPerWord = durationMs / Math.max(wordList.length, 1);
+        let idx = 0;
+        wordTimerRef.current = setInterval(() => {
+          idx++;
+          if (idx >= wordList.length) {
+            if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+          } else {
+            setCaptionWordIndex(idx);
+          }
+        }, msPerWord);
+      };
+
+      const speakWithBrowser = (text: string, vol?: number, mut?: boolean) => {
+        window.speechSynthesis.cancel();
+        utteranceTextRef.current = text;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate  = 1.1;
+        utter.pitch = 1.05;
+        utter.volume = (mut ?? isMuted) ? 0 : (vol ?? volume) / 100;
+        const voices = window.speechSynthesis.getVoices();
+        const female = voices.find(v => /female|woman|samantha|victoria|karen|moira/i.test(v.name));
+        if (female) utter.voice = female;
+        utteranceRef.current = utter;
+        setCaptionWordIndex(0);
+        // Use onboundary (Chrome) to sync word highlight, fallback to interval
+        let boundaryWorked = false;
+        utter.onboundary = (e: SpeechSynthesisEvent) => {
+          if (e.name !== 'word') return;
+          boundaryWorked = true;
+          let pos = 0;
+          for (let i = 0; i < wordList.length; i++) {
+            if (pos >= e.charIndex) { setCaptionWordIndex(i); return; }
+            if (i === wordList.length - 1) { setCaptionWordIndex(i); return; }
+            pos += wordList[i].length + 1;
+          }
+        };
+        utter.onstart = () => {
+          // If onboundary didn't fire within 300ms, fall back to interval
+          setTimeout(() => {
+            if (!boundaryWorked) startWordTimer(wordList.length * 380); // ~380ms/word at 1.1x rate
+          }, 300);
+        };
+        const done = () => {
+          utteranceRef.current = null;
+          utteranceTextRef.current = '';
+          if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+          setCaptionWordIndex(-1);
+          setIsPaused(false); setIsSpeaking(false); setSpeakingId(null); startListenRef.current();
+        };
+        utter.onend   = done;
+        utter.onerror = done;
+        window.speechSynthesis.speak(utter);
+      };
+      // Expose so handleVolumeCommit can restart with new volume
+      speakBrowserRef.current = speakWithBrowser;
+
+      try {
+        const speakRes = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: data.message }),
+        });
+        if (speakRes.ok) {
+          const AC = window.AudioContext || (window as any).webkitAudioContext;
+          if (!audioCtxRef.current) audioCtxRef.current = new AC();
+          const ctx = audioCtxRef.current;
+          await ctx.resume();
+          // GainNode for volume control
+          const gain = ctx.createGain();
+          gain.gain.value = isMuted ? 0 : volume / 100;
+          gainNodeRef.current = gain;
+          const arrayBuffer = await speakRes.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+          const source = ctx.createBufferSource();
+          sourceNodeRef.current = source;
+          source.buffer = audioBuffer;
+          source.playbackRate.value = 1.15;
+          source.connect(gain);
+          gain.connect(ctx.destination);
+          // Start word timer based on actual audio duration (adjusted for playback rate)
+          startWordTimer((audioBuffer.duration * 1000) / 1.15);
+          source.start(0);
+          source.onended = () => {
+            sourceNodeRef.current = null;
+            if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+            setCaptionWordIndex(-1);
+            setIsPaused(false); setIsSpeaking(false); setSpeakingId(null); startListenRef.current();
+          };
+        } else {
+          speakWithBrowser(cleanedMessage);
+        }
+      } catch {
+        speakWithBrowser(cleanedMessage);
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        setMessages((prev) => [...prev, { role: 'assistant', content: "Sorry, I couldn't connect. Please try again." }]);
+        setIsSpeaking(false); setSpeakingId(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Stable ref so startListening's onresult can always call latest sendVoiceMessage
+  const sendVoiceMessageRef = useRef(sendVoiceMessage);
+  useEffect(() => { sendVoiceMessageRef.current = sendVoiceMessage; }, [sendVoiceMessage]);
+
+  // Called when the user releases the volume slider.
+  // For AudioContext path, gain is already live. For browser TTS, restart with new volume.
+  const handleVolumeCommit = useCallback((v: number) => {
+    setVolume(v);
+    if (v > 0) setIsMuted(false);
+    const mut = v === 0;
+    // AudioContext gain — already updated live via applyVolume; just ensure it's correct
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = mut ? 0 : v / 100;
+    // Browser TTS — restart utterance with new volume
+    if (utteranceRef.current && utteranceTextRef.current && window.speechSynthesis.speaking) {
+      if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+      // speakWithBrowser is defined inside sendVoiceMessage's closure, so we re-invoke via ref
+      speakBrowserRef.current(utteranceTextRef.current, v, mut);
+    }
+  }, []);
+
+  // Stable ref to speakWithBrowser so handleVolumeCommit can call it without circular deps
+  const speakBrowserRef = useRef<(text: string, vol: number, mut: boolean) => void>(() => {});
+
+  const clearWordTimer = useCallback(() => {
+    if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+    setCaptionWordIndex(-1);
+  }, []);
+
+  const stopEverything = useCallback(() => {
+    voiceModeRef.current = false;
+    setVoiceMode(false);
+    abortCtrlRef.current?.abort();
+    abortCtrlRef.current = null;
+    try { sourceNodeRef.current?.stop(); } catch {}
+    sourceNodeRef.current = null;
+    window.speechSynthesis?.cancel();
+    utteranceRef.current = null;
+    utteranceTextRef.current = '';
+    try { recognitionRef.current?.abort(); } catch {}
+    recognitionRef.current = null;
+    if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+    setCaptionWordIndex(-1);
+    setIsRecording(false);
+    setIsLoading(false);
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setSpeakingId(null);
+  }, []);
+
   const toggleRecording = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Try Chrome for voice input.'); return; }
-    if (isRecording) { recognitionRef.current?.stop(); setIsRecording(false); return; }
-    const r = new SR();
-    r.lang = 'en-US'; r.interimResults = false;
-    r.onresult = (e: any) => { /* handled by ChatInterface */ };
-    r.onend = () => setIsRecording(false);
-    r.onerror = () => setIsRecording(false);
-    recognitionRef.current = r; r.start(); setIsRecording(true);
-  }, [isRecording]);
+
+    // Use refs for all conditions — eliminates stale closure issues entirely
+    if (voiceModeRef.current) {
+      if (isSpeakingRef.current) {
+        // Interrupt mid-speech: stop audio, keep voice mode, jump straight to listening
+        try { sourceNodeRef.current?.stop(); } catch {}
+        sourceNodeRef.current = null;
+        window.speechSynthesis?.cancel();
+        utteranceRef.current = null;
+        utteranceTextRef.current = '';
+        if (wordTimerRef.current) { clearInterval(wordTimerRef.current); wordTimerRef.current = null; }
+        setCaptionWordIndex(-1);
+        setIsPaused(false);
+        setIsSpeaking(false);
+        setSpeakingId(null);
+        setTimeout(() => startListenRef.current(), 150);
+      } else if (isRecordingRef.current) {
+        // Actively recording → tap ends the whole session
+        stopEverything();
+      } else {
+        // Standby → user tapped to speak.
+        // Kill any lingering recognition first (mic may still be held from
+        // a previous turn's onspeechend gap or a failed auto-restart).
+        voiceModeRef.current = true;
+        try { recognitionRef.current?.abort(); } catch {}
+        recognitionRef.current = null;
+        setIsRecording(false);
+        // Small delay so Chrome can release the mic before we re-open it
+        setTimeout(() => { if (voiceModeRef.current) startListenRef.current(); }, 200);
+      }
+      return;
+    }
+
+    // Idle → start fresh conversation
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!audioCtxRef.current) audioCtxRef.current = new AC();
+    audioCtxRef.current.resume();
+    voiceModeRef.current = true;
+    setVoiceMode(true);
+    setTimeout(() => startListening(), 350);
+  }, [startListening, stopEverything]);
+
+  // Send a suggestion as a chat message (no TTS — text-only response)
+  const handleSuggestion = useCallback(async (text: string) => {
+    setActive(1); // switch to Chat card
+    await new Promise(r => setTimeout(r, 80)); // let the card animate in
+    sendVoiceMessageRef.current(text);
+  }, []);
 
   // Compute style for each card based on distance from active
   const getCardStyle = (i: number): React.CSSProperties => {
@@ -68,6 +422,7 @@ export default function HomeClient() {
     if (diff > total / 2)  diff -= total;
     if (diff < -total / 2) diff += total;
 
+    // translateY(-50%) always present — vertical centering via top:50% on the card element
     if (diff === 0) return {
       transform: 'translateX(0) scale(1)',
       opacity: 1, zIndex: 10,
@@ -96,120 +451,176 @@ export default function HomeClient() {
   };
 
   const cards = [
-    <AvatarSection key="avatar" lastAIMessage={lastAIMsg} isSpeaking={isSpeaking} isRecording={isRecording} isLoading={isLoading} onToggleTalk={toggleRecording} />,
+    <AvatarSection key="avatar" lastAIMessage={lastAIMsg} isSpeaking={isSpeaking} isRecording={isRecording} isLoading={isLoading} isVoiceMode={voiceMode} onToggleTalk={toggleRecording}
+      volume={volume} isMuted={isMuted} isPaused={isPaused}
+      onVolumeUp={() => handleVolumeChange(10)} onVolumeDown={() => handleVolumeChange(-10)}
+      onVolumeSet={(v) => { setVolume(v); applyVolume(v, isMuted); if (v > 0) setIsMuted(false); }}
+      onMute={handleMute} onPause={handlePause} captionWordIndex={captionWordIndex}
+      onVolumeCommit={handleVolumeCommit} />,
     <ChatInterface key="chat" messages={messages} setMessages={setMessages} isLoading={isLoading} setIsLoading={setIsLoading}
       isRecording={isRecording} setIsRecording={setIsRecording} isSpeaking={isSpeaking} setIsSpeaking={setIsSpeaking}
       speakingId={speakingId} setSpeakingId={setSpeakingId} onAIMessage={setLastAIMsg} />,
     <InfoPanel key="resume" />,
+    <BeyondCard key="beyond" />,
   ];
 
   return (
-    <div className="relative flex flex-col overflow-hidden" style={{
-      position: 'fixed', inset: 12,
-      background: '#090d1c',
-      borderRadius: 16,
-      border: '1px solid rgba(255,255,255,0.06)',
-      boxShadow: '0 0 0 1px rgba(99,102,241,0.05), 0 32px 80px rgba(0,0,0,0.55)',
-    }}>
-      <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
-      <ParticleBackground />
-
-      {/* ── Header ── */}
-      <header className="relative z-10 shrink-0 text-center py-4 px-6"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,13,28,0.9)', backdropFilter: 'blur(12px)' }}>
-        <h1 className="text-xl font-extrabold tracking-tight header-glow" style={{ color: '#e0e7ff' }}>
-          👩‍💻 <span className="gradient-text-soft">Talk to Indrani&apos;s AI Clone</span>
+    <>
+      {/* ── Header — completely separate fixed element, nothing can overlap it ── */}
+      <div style={{
+        position: 'fixed',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, calc(-50% + 0px))',
+        width: 'calc(100vw - 24px)',
+        zIndex: 9999,
+        borderRadius: '16px 16px 0 0',
+        background: '#0d1130',
+        borderBottom: '1px solid rgba(99,102,241,0.25)',
+        textAlign: 'center',
+        padding: '16px 24px',
+        /* push it to the top of the container */
+        marginTop: `calc((100vh - 80px) / -2)`,
+      }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#c7d2fe' }}>
+          👩‍💻 <span style={{ background: 'linear-gradient(135deg, #a5b4fc, #c4b5fd, #bae6fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Talk to Indrani&apos;s AI Clone</span>
         </h1>
-        <div className="flex items-center justify-center gap-5 mt-2 flex-wrap">
-          {LINKS.map(({ label, href, emoji }) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+          {LINKS.map(({ label, href }) => (
             <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5 underline underline-offset-2 decoration-slate-600 hover:decoration-indigo-400">
-              <span>{emoji}</span><span>{label}</span>
+              style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'none', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s' }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
+              {label}
             </a>
           ))}
-        </div>
-      </header>
-
-      {/* ── Card stack ── */}
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col" style={{ paddingTop: 28 }}>
-
-        {/* Stack area */}
-        <div className="flex-1 min-h-0 relative flex items-center justify-center" style={{ overflow: 'hidden' }}>
-
-          {/* Left arrow */}
-          <button onClick={prev}
-            className="absolute left-4 z-20 flex items-center justify-center transition-all hover:scale-110"
-            style={{
-              width: 44, height: 44, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)',
-              color: 'rgba(255,255,255,0.6)',
-              fontSize: 18,
-            }}>
-            ‹
+          <button
+            onClick={() => {
+              setActive(2);
+              setTimeout(() => {
+                const el = document.getElementById('cert-section');
+                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 500);
+            }}
+            style={{ fontSize: 12, color: '#94a3b8', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s', cursor: 'pointer' }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
+            My Certifications
           </button>
+        </div>
+      </div>
 
-          {/* Cards */}
-          {cards.map((card, i) => (
-            <div
-              key={i}
-              onClick={() => i !== active && setActive(i)}
-              style={{
+      {/* ── Main container — background + cards, sits below header ── */}
+      <div style={{
+        position: 'fixed',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'calc(100vw - 24px)',
+        height: 'calc(100vh - 80px)',
+        borderRadius: 16,
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '0 0 0 1px rgba(99,102,241,0.05), 0 32px 80px rgba(0,0,0,0.55)',
+        background: '#090d1c',
+        overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Background effects */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+          <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
+          <ParticleBackground />
+        </div>
+
+        {/* Header placeholder — reserves the same height so cards sit below */}
+        <HeaderSpacer />
+
+        {/* Cards + dots */}
+        <div style={{
+          position: 'relative', zIndex: 10,
+          flex: '1 1 0', minHeight: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 8, paddingTop: 200, paddingBottom: 12,
+        }}>
+          <FloatingTech />
+
+          {/* Carousel track */}
+          <div style={{ position: 'relative', width: '100%', flexShrink: 0, height: 'min(calc(100vh - 248px), 540px)' }}>
+            <button onClick={prev} style={{
+              position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 44, height: 44, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 18, cursor: 'pointer',
+            }}>‹</button>
+
+            {cards.map((card, i) => (
+              <div key={i} onClick={() => i !== active && setActive(i)} style={{
                 position: 'absolute',
-                width: 'min(420px, 80vw)',
-                height: '88%',
-                borderRadius: 20,
-                overflow: 'hidden',
+                top: 12, bottom: 12, left: '50%',
+                marginLeft: 'calc(min(520px, 86vw) / -2)',
+                width: 'min(520px, 86vw)',
+                borderRadius: 20, overflow: 'hidden',
                 background: 'rgba(255,255,255,0.025)',
                 backdropFilter: 'blur(20px)',
                 transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
                 padding: 10,
                 ...getCardStyle(i),
-              }}
-            >
-              <div style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden' }}>
-                {card}
+              }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden' }}>
+                  {card}
+                </div>
               </div>
-            </div>
-          ))}
-
-          {/* Right arrow */}
-          <button onClick={next}
-            className="absolute right-4 z-20 flex items-center justify-center transition-all hover:scale-110"
-            style={{
-              width: 44, height: 44, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)',
-              color: 'rgba(255,255,255,0.6)',
-              fontSize: 18,
-            }}>
-            ›
-          </button>
-        </div>
-
-        {/* ── Dot indicators + label ── */}
-        <div className="shrink-0 flex flex-col items-center gap-2 py-3">
-          <p className="text-xs font-semibold gradient-text-soft tracking-widest uppercase">
-            {CARD_LABELS[active]}
-          </p>
-          <div className="flex items-center gap-2">
-            {CARD_LABELS.map((_, i) => (
-              <button key={i} onClick={() => setActive(i)}
-                className="rounded-full transition-all"
-                style={{
-                  width: active === i ? 24 : 7,
-                  height: 7,
-                  background: active === i
-                    ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-                    : 'rgba(255,255,255,0.15)',
-                  boxShadow: active === i ? '0 0 8px rgba(99,102,241,0.4)' : 'none',
-                }} />
             ))}
+
+            <button onClick={next} style={{
+              position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 44, height: 44, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 18, cursor: 'pointer',
+            }}>›</button>
+          </div>
+
+          {/* Dots */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.7)' }}>
+              {CARD_LABELS[active]}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {CARD_LABELS.map((_, i) => (
+                <button key={i} onClick={() => setActive(i)} style={{
+                  borderRadius: 999, border: 'none', cursor: 'pointer',
+                  width: active === i ? 24 : 7, height: 7,
+                  background: active === i ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(255,255,255,0.15)',
+                  boxShadow: active === i ? '0 0 8px rgba(99,102,241,0.4)' : 'none',
+                  transition: 'all 0.3s',
+                }} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Suggestion bubble — fixed bottom-left, outside the card container */}
+      <SuggestionBubble onSuggest={handleSuggestion} />
+
+      {/* Feedback widget — fixed bottom-right */}
+      <FeedbackWidget />
+
+      {/* Coffee badge — fixed top-right */}
+      <CoffeeBadge />
+    </>
+  );
+}
+
+// Invisible spacer that mirrors the header height so the card area starts below it
+function HeaderSpacer() {
+  return (
+    <div style={{
+      flexShrink: 0,
+      padding: '16px 24px',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+    }}>
+      <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>placeholder</div>
+      <div style={{ marginTop: 10, height: 32 }} />
     </div>
   );
 }
