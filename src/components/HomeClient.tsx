@@ -11,14 +11,14 @@ import SuggestionBubble from './SuggestionBubble';
 import FeedbackWidget from './FeedbackWidget';
 import CoffeeBadge from './CoffeeBadge';
 
-const LINKS = [
-  { label: 'View my Resume',    href: '/Indrani_Inapakolla.pdf',                emoji: '📄' },
-  { label: 'Visit my LinkedIn', href: 'https://www.linkedin.com/in/indrani-i/', emoji: '💼' },
-  { label: 'View my GitHub',    href: 'https://github.com/indrani-19',          emoji: '🐙' },
-  { label: 'Read my Articles',  href: 'https://medium.com/@indhuinapakolla',    emoji: '✍️' },
-];
-
 const CARD_LABELS = ['Profile', 'Chat', 'Resume', 'Beyond'];
+
+const LINKS_FULL = [
+  { label: 'Resume',    href: '/Indrani_Inapakolla.pdf',                emoji: '📄' },
+  { label: 'LinkedIn',  href: 'https://www.linkedin.com/in/indrani-i/', emoji: '💼' },
+  { label: 'GitHub',    href: 'https://github.com/indrani-19',          emoji: '🐙' },
+  { label: 'Articles',  href: 'https://medium.com/@indhuinapakolla',    emoji: '✍️' },
+];
 
 function stripMd(text: string) {
   return text
@@ -31,6 +31,14 @@ function stripMd(text: string) {
 }
 
 export default function HomeClient() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const [messages,    setMessages]    = useState<Message[]>([]);
   const [isLoading,   setIsLoading]   = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -105,6 +113,16 @@ export default function HomeClient() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Touch swipe navigation
+  const touchStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
+    touchStartX.current = null;
+  };
 
   // Auto-greet — hard-coded so it's instant and consistent
   useEffect(() => {
@@ -416,13 +434,14 @@ export default function HomeClient() {
     sendVoiceMessageRef.current(text);
   }, []);
 
-  // Compute style for each card based on distance from active
+  // Compute style for each card based on distance from active.
+  // Cards are centered via left:0/right:0/margin:auto — translateX offsets are purely
+  // for the peek/slide animation and do NOT need a centering component.
   const getCardStyle = (i: number): React.CSSProperties => {
     let diff = i - active;
     if (diff > total / 2)  diff -= total;
     if (diff < -total / 2) diff += total;
 
-    // translateY(-50%) always present — vertical centering via top:50% on the card element
     if (diff === 0) return {
       transform: 'translateX(0) scale(1)',
       opacity: 1, zIndex: 10,
@@ -431,18 +450,22 @@ export default function HomeClient() {
       pointerEvents: 'all',
     };
     if (diff === 1 || diff === -(total - 1)) return {
-      transform: 'translateX(58%) scale(0.86)',
-      opacity: 0.55, zIndex: 5,
+      // Mobile: push fully off-screen right; desktop: peek right
+      transform: isMobile ? 'translateX(115%) scale(0.8)' : 'translateX(58%) scale(0.86)',
+      opacity: isMobile ? 0 : 0.55,
+      zIndex: 5,
       boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
       border: '1px solid rgba(255,255,255,0.06)',
-      cursor: 'pointer', pointerEvents: 'all',
+      cursor: 'pointer', pointerEvents: isMobile ? 'none' : 'all',
     };
     if (diff === -1 || diff === (total - 1)) return {
-      transform: 'translateX(-58%) scale(0.86)',
-      opacity: 0.55, zIndex: 5,
+      // Mobile: push fully off-screen left; desktop: peek left
+      transform: isMobile ? 'translateX(-115%) scale(0.8)' : 'translateX(-58%) scale(0.86)',
+      opacity: isMobile ? 0 : 0.55,
+      zIndex: 5,
       boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
       border: '1px solid rgba(255,255,255,0.06)',
-      cursor: 'pointer', pointerEvents: 'all',
+      cursor: 'pointer', pointerEvents: isMobile ? 'none' : 'all',
     };
     return {
       transform: `translateX(${diff * 80}%) scale(0.72)`,
@@ -466,115 +489,86 @@ export default function HomeClient() {
 
   return (
     <>
-      {/* ── Header — completely separate fixed element, nothing can overlap it ── */}
-      <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, calc(-50% + 0px))',
-        width: 'calc(100vw - 24px)',
-        zIndex: 9999,
-        borderRadius: '16px 16px 0 0',
-        background: '#0d1130',
-        borderBottom: '1px solid rgba(99,102,241,0.25)',
-        textAlign: 'center',
-        padding: '16px 24px',
-        /* push it to the top of the container */
-        marginTop: `calc((100vh - 80px) / -2)`,
-      }}>
-        <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#c7d2fe' }}>
-          👩‍💻 <span style={{ background: 'linear-gradient(135deg, #a5b4fc, #c4b5fd, #bae6fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Talk to Indrani&apos;s AI Clone</span>
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-          {LINKS.map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'none', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s' }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
-              {label}
-            </a>
-          ))}
-          <button
-            onClick={() => {
-              setActive(2);
-              setTimeout(() => {
-                const el = document.getElementById('cert-section');
-                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }, 500);
-            }}
-            style={{ fontSize: 12, color: '#94a3b8', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s', cursor: 'pointer' }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
-            My Certifications
-          </button>
-        </div>
-      </div>
+      {/*
+        Layout is driven entirely by CSS media queries in globals.css.
+        No isMobile state used for any positioning — zero hydration mismatch.
+      */}
+      <div className="app-container">
 
-      {/* ── Main container — background + cards, sits below header ── */}
-      <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 'calc(100vw - 24px)',
-        height: 'calc(100vh - 80px)',
-        borderRadius: 16,
-        border: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 0 0 1px rgba(99,102,241,0.05), 0 32px 80px rgba(0,0,0,0.55)',
-        background: '#090d1c',
-        overflow: 'hidden',
-        display: 'flex', flexDirection: 'column',
-      }}>
         {/* Background effects */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
           <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
           <ParticleBackground />
         </div>
 
-        {/* Header placeholder — reserves the same height so cards sit below */}
-        <HeaderSpacer />
+        {/* Header — always a flex child inside the container */}
+        <div className="app-header">
+          <h1 className="app-header-title" style={{ fontWeight: 800, letterSpacing: '-0.02em', color: '#e0e7ff' }}>
+            👩‍💻 Talk to Indrani&apos;s AI Clone
+          </h1>
+
+          {/* Mobile link row — hidden on desktop via CSS */}
+          <div className="header-links-mobile">
+            {LINKS_FULL.map(({ label, href, emoji }) => (
+              <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+                style={{ flexShrink: 0, fontSize: 11, color: '#94a3b8', textDecoration: 'none', padding: '5px 11px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', whiteSpace: 'nowrap' }}>
+                {emoji} {label}
+              </a>
+            ))}
+            <button
+              onClick={() => { setActive(2); setTimeout(() => { document.getElementById('cert-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 500); }}
+              style={{ flexShrink: 0, fontSize: 11, color: '#94a3b8', padding: '5px 11px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              🏅 Certs
+            </button>
+          </div>
+
+          {/* Desktop link row — hidden on mobile via CSS */}
+          <div className="header-links-desktop">
+            {LINKS_FULL.map(({ label, href }) => (
+              <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'none', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s' }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
+                View my {label}
+              </a>
+            ))}
+            <button
+              onClick={() => { setActive(2); setTimeout(() => { document.getElementById('cert-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 500); }}
+              style={{ fontSize: 12, color: '#94a3b8', padding: '6px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', transition: 'all 0.2s', cursor: 'pointer' }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(99,102,241,0.4)'; el.style.background = 'rgba(99,102,241,0.08)'; el.style.color = '#c7d2fe'; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = 'rgba(255,255,255,0.1)'; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = '#94a3b8'; }}>
+              My Certifications
+            </button>
+          </div>
+        </div>
 
         {/* Cards + dots */}
-        <div style={{
-          position: 'relative', zIndex: 10,
-          flex: '1 1 0', minHeight: 0,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: 8, paddingTop: 200, paddingBottom: 12,
-        }}>
+        <div className="app-body">
           <FloatingTech />
 
           {/* Carousel track */}
-          <div style={{ position: 'relative', width: '100%', flexShrink: 0, height: 'min(calc(100vh - 248px), 540px)' }}>
+          <div className="carousel-track" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <button onClick={prev} style={{
-              position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-              zIndex: 20, width: 44, height: 44, borderRadius: '50%',
+              position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 36, height: 36, borderRadius: '50%',
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 18, cursor: 'pointer',
+              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer',
             }}>‹</button>
 
             {cards.map((card, i) => (
-              <div key={i} onClick={() => i !== active && setActive(i)} style={{
-                position: 'absolute',
-                top: 12, bottom: 12, left: '50%',
-                marginLeft: 'calc(min(520px, 86vw) / -2)',
-                width: 'min(520px, 86vw)',
-                borderRadius: 20, overflow: 'hidden',
-                background: 'rgba(255,255,255,0.025)',
-                backdropFilter: 'blur(20px)',
-                transition: 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-                padding: 10,
-                ...getCardStyle(i),
-              }}>
-                <div style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden' }}>
+              <div key={i} className="carousel-card" onClick={() => i !== active && setActive(i)}
+                style={getCardStyle(i)}>
+                <div style={{ width: '100%', height: '100%', borderRadius: 10, overflow: 'hidden' }}>
                   {card}
                 </div>
               </div>
             ))}
 
             <button onClick={next} style={{
-              position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-              zIndex: 20, width: 44, height: 44, borderRadius: '50%',
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 36, height: 36, borderRadius: '50%',
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 18, cursor: 'pointer',
+              backdropFilter: 'blur(8px)', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer',
             }}>›</button>
           </div>
 
@@ -612,15 +606,22 @@ export default function HomeClient() {
 
 // Invisible spacer that mirrors the header height so the card area starts below it
 function HeaderSpacer() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   return (
     <div style={{
       flexShrink: 0,
-      padding: '16px 24px',
+      padding: isMobile ? '10px 12px' : '16px 24px',
       visibility: 'hidden',
       pointerEvents: 'none',
     }}>
-      <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>placeholder</div>
-      <div style={{ marginTop: 10, height: 32 }} />
+      <div style={{ fontSize: isMobile ? 14 : 18, fontWeight: 800, lineHeight: 1.4 }}>placeholder</div>
+      <div style={{ marginTop: isMobile ? 8 : 10, height: isMobile ? 27 : 32 }} />
     </div>
   );
 }

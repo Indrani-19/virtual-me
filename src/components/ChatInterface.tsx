@@ -100,7 +100,9 @@ export default function ChatInterface({
   const inputRef                  = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = bottomRef.current;
+    const scroller = el?.closest('.chat-scroll') as HTMLElement | null;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
   }, [messages, isLoading]);
 
   const sendMessage = useCallback(

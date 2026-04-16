@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 interface AvatarSectionProps {
   lastAIMessage: string;
@@ -49,6 +49,14 @@ export default function AvatarSection({
   captionWordIndex,
   onVolumeCommit,
 }: AvatarSectionProps) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const captionBoxRef = useRef<HTMLDivElement>(null);
   const activeWordRef = useRef<HTMLSpanElement>(null);
 
@@ -60,21 +68,24 @@ export default function AvatarSection({
   }, [captionWordIndex]);
   const isActive = isSpeaking || isRecording || isLoading;
 
+  const avatarSize = isMobile ? 140 : 200;
+
   return (
-    <div className="flex flex-col items-center justify-center gap-5 h-full px-5 py-6">
+    <div className="flex flex-col items-center justify-center h-full px-5"
+      style={{ gap: isMobile ? 10 : 20, paddingTop: isMobile ? 12 : 24, paddingBottom: isMobile ? 12 : 24 }}>
 
       {/* Photo avatar */}
       <div className="relative avatar-float">
         {/* Speaking rings — always in DOM, hidden when inactive to avoid flicker */}
-        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: -16 }} />
-        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: -30 }} />
-        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: -44 }} />
+        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: isMobile ? -10 : -16 }} />
+        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: isMobile ? -20 : -30 }} />
+        <div className={`speak-ring${isActive ? '' : ' speak-ring-hidden'}`} style={{ inset: isMobile ? -30 : -44 }} />
 
         {/* Rotating gradient ring */}
         <div className="avatar-ring" style={{ borderRadius: '50%', padding: 3 }}>
           <div style={{
-            width: 200,
-            height: 200,
+            width: avatarSize,
+            height: avatarSize,
             borderRadius: '50%',
             overflow: 'hidden',
             background: '#030014',
@@ -109,7 +120,7 @@ export default function AvatarSection({
       </div>
 
       {/* Caption box */}
-      <div className="caption-box w-full px-4 py-3 min-h-[80px]">
+      <div className="caption-box w-full" style={{ padding: isMobile ? '8px 12px' : '12px 16px', minHeight: isMobile ? 60 : 80 }}>
         <p className="text-[10px] uppercase tracking-widest mb-1.5 font-semibold"
           style={{ color: isRecording ? '#f87171' : isLoading ? '#fbbf24' : isSpeaking ? '#34d399' : 'rgba(129,140,248,0.6)' }}>
           {isRecording ? '🎙 Listening…'

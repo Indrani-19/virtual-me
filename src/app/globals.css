@@ -8,6 +8,10 @@ html, body {
   color: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Prevent iOS rubber-band scroll from shifting fixed elements */
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }
 
 /* ── Scrollbar ── */
@@ -259,6 +263,146 @@ html, body {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(99, 102, 241, 0.08);
 }
+
+/* ── App layout — pure CSS media queries, zero JS isMobile for positioning ── */
+
+/* Mobile-first: full-screen, no transforms */
+.app-container {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #090d1c;
+  /* overflow: clip prevents scrollIntoView on descendants from scrolling the container.
+     overflow: hidden would still allow programmatic scrolling, which was pushing the
+     header off-screen when the chat auto-scrolled on initial greeting. */
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
+}
+/* Desktop: centered floating window */
+@media (min-width: 640px) {
+  .app-container {
+    /* Explicit inset values so absolute-positioned descendants
+       (the bg div with inset:0) use the correct containing block.
+       A transform here would create a layout-box-vs-visual-box mismatch
+       and push the bg div — and flex children — off-screen. */
+    top: 40px; left: 12px; right: 12px; bottom: 40px;
+    width: auto; height: auto;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.05), 0 32px 80px rgba(0,0,0,0.55);
+  }
+}
+
+.app-header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 20;
+  background: transparent;
+  text-align: center;
+  padding: 10px 12px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  min-height: 56px;
+}
+@media (min-width: 640px) {
+  .app-header {
+    border-radius: 16px 16px 0 0;
+    padding: 16px 24px;
+  }
+}
+
+/* Mobile: horizontal scrollable link row */
+.header-links-mobile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  padding-right: 60px; /* space for CoffeeBadge */
+}
+.header-links-mobile::-webkit-scrollbar { display: none; }
+/* Desktop: hide the mobile row */
+@media (min-width: 640px) { .header-links-mobile { display: none; } }
+
+/* Desktop: centered wrapping pill row */
+.header-links-desktop {
+  display: none;
+}
+@media (min-width: 640px) {
+  .header-links-desktop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+}
+
+.app-body {
+  position: relative;
+  z-index: 10;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Mobile: flex-start so carousel fills from top of body */
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+}
+@media (min-width: 640px) {
+  .app-body {
+    /* Desktop: carousel has fixed height so center it in remaining space */
+    justify-content: center;
+    padding: 8px 0 12px;
+  }
+}
+
+.carousel-track {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  /* On mobile use flex-based height */
+  flex: 1 1 0;
+  min-height: 0;
+}
+@media (min-width: 640px) {
+  .carousel-track {
+    flex: none;
+    height: min(calc(100vh - 248px), 540px);
+  }
+}
+
+.carousel-card {
+  position: absolute;
+  top: 8px; bottom: 8px;
+  left: 0; right: 0;
+  margin: 0 auto;
+  width: calc(100% - 40px);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(10, 14, 40, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 8px;
+}
+@media (min-width: 640px) {
+  .carousel-card {
+    top: 12px; bottom: 12px;
+    width: min(520px, calc(100% - 40px));
+    border-radius: 20px;
+    padding: 10px;
+  }
+}
+
+/* App header title size */
+.app-header-title { font-size: 14px; }
+@media (min-width: 640px) { .app-header-title { font-size: 18px; } }
 
 /* ── Scrollable ── */
 .chat-scroll, .panel-scroll {

@@ -30,8 +30,8 @@ export default function CoffeeBadge() {
   return (
     <div style={{
       position: 'fixed',
-      top: 14,
-      right: 18,
+      top: isMobile ? 14 : 52,
+      right: isMobile ? 18 : 28,
       zIndex: 10000,
       display: 'flex',
       flexDirection: 'column',
