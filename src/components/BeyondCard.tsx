@@ -175,7 +175,7 @@ export default function BeyondCard() {
           <span style={{ fontSize: 13 }}>🛍️</span>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.7)' }}>Currently Building</span>
         </div>
-        <a href="https://www.instagram.com/thesecondcloset__/" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.instagram.com/thesecondcloset___/" target="_blank" rel="noopener noreferrer"
           className="glass rounded-xl p-3.5 block" style={{ borderColor: 'rgba(99,102,241,0.12)', textDecoration: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#f1f5f9' }}>The Second Closet · India</p>

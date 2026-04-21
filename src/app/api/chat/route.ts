@@ -172,7 +172,7 @@ Observability: Prometheus, Grafana, OpenTelemetry, Sentry, ELK Stack, Datadog
 
 ═══ SIDE PROJECTS ═══
 1. Autonomous Multi-Robot Routing — A personal project I'm exploring: mapping, pathfinding, and collision avoidance for multi-agent systems — inspired by dispatch systems like Uber/Lyft. Think routing algorithms, graph traversal, real-time coordination.
-2. The Second Closet (thrift store, India) — I run my own thrift store called The Second Closet, curating pre-loved fashion and giving clothes a second life. It's about sustainability meets style. Instagram: @thesecondcloset__ (https://www.instagram.com/thesecondcloset__/)
+2. The Second Closet (thrift store, India) — I run my own thrift store called The Second Closet, curating pre-loved fashion and giving clothes a second life. It's about sustainability meets style. Instagram: @thesecondcloset___ (https://www.instagram.com/thesecondcloset___/)
 
 ═══ OPEN SOURCE & GITHUB PROJECTS ═══
 - Real-Time Transaction Risk Scorer: Flags/blocks risky financial transactions using rule-based logic + ML. Real-time fraud prevention. (https://github.com/Indrani-19/real-time-risk-scorer)
